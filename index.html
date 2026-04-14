@@ -333,6 +333,9 @@
       align-self: flex-start;
     }
 
+    /* 有子項目的父條目獨占一整行 */
+    .kw-item.has-subs { grid-column: 1 / -1; }
+
     /* ── Sub items (span full width, indented) ── */
     .kw-sub-row {
       grid-column: 1 / -1;
@@ -915,7 +918,7 @@ function buildList() {
   for (const node of keywords) {
     // Main item
     const item = document.createElement('div');
-    item.className = 'kw-item';
+    item.className = node.subs.length > 0 ? 'kw-item has-subs' : 'kw-item';
     item.dataset.kw = node.kw;
     item.dataset.pid = node.pid;
     item.innerHTML = `
