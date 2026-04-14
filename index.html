@@ -1,0 +1,1389 @@
+<!DOCTYPE html>
+<html lang="zh-TW" data-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>考試關鍵字查找器 - 策略品牌行銷</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    /* ── Theme Variables ── */
+    :root {
+      --bg:           #0f1117;
+      --surface:      #1a1d27;
+      --surface2:     #22263a;
+      --border:       #2e3350;
+      --accent:       #6c8ef5;
+      --accent2:      #a78bfa;
+      --text:         #e2e8f0;
+      --text-muted:   #8892b0;
+      --tag-bg:       #1e3a5f;
+      --tag-text:     #7ec8e3;
+      --sub-tag-bg:   #2d1b4e;
+      --sub-tag-text: #c4b5fd;
+      --mark-bg:      rgba(108,142,245,.35);
+      --shadow:       0 4px 20px rgba(0,0,0,.4);
+      --resize-hover: rgba(108,142,245,.25);
+    }
+    [data-theme="light"] {
+      --bg:           #f4f5f9;
+      --surface:      #ffffff;
+      --surface2:     #eef0f8;
+      --border:       #d1d5e8;
+      --accent:       #4f67d8;
+      --accent2:      #7c3aed;
+      --text:         #1e2340;
+      --text-muted:   #6b7280;
+      --tag-bg:       #dbeafe;
+      --tag-text:     #1d4ed8;
+      --sub-tag-bg:   #ede9fe;
+      --sub-tag-text: #6d28d9;
+      --mark-bg:      rgba(79,103,216,.2);
+      --shadow:       0 4px 20px rgba(0,0,0,.1);
+      --resize-hover: rgba(79,103,216,.15);
+    }
+
+    body {
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      transition: background .2s, color .2s;
+    }
+
+    /* ── Top Bar ── */
+    .topbar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 16px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+      z-index: 10;
+    }
+
+    .topbar-title {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--accent);
+      white-space: nowrap;
+      letter-spacing: -.01em;
+    }
+
+    /* ── Search ── */
+    .search-wrap {
+      flex: 1;
+      position: relative;
+      max-width: 460px;
+    }
+    .search-icon {
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--text-muted);
+      pointer-events: none;
+    }
+    #searchInput {
+      width: 100%;
+      padding: 7px 32px 7px 32px;
+      background: var(--bg);
+      border: 1.5px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: 13.5px;
+      outline: none;
+      transition: border-color .15s;
+    }
+    #searchInput:focus { border-color: var(--accent); }
+    #searchInput::placeholder { color: var(--text-muted); }
+    .search-clear {
+      position: absolute;
+      right: 8px;
+      top: 50%;
+      transform: translateY(-50%);
+      background: none;
+      border: none;
+      cursor: pointer;
+      color: var(--text-muted);
+      display: none;
+      padding: 2px;
+      line-height: 1;
+    }
+    .search-clear:hover { color: var(--text); }
+
+    /* ── Suggestions Dropdown ── */
+    .suggestions-wrap {
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      right: 0;
+      background: var(--surface);
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      box-shadow: var(--shadow);
+      z-index: 200;
+      max-height: 260px;
+      overflow-y: auto;
+      display: none;
+    }
+    .suggestions-wrap.open { display: block; }
+    .suggestions-wrap::-webkit-scrollbar { width: 4px; }
+    .suggestions-wrap::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .suggestion-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      cursor: pointer;
+      transition: background .1s;
+    }
+    .suggestion-item:hover, .suggestion-item.focused {
+      background: var(--surface2);
+    }
+    .suggestion-kw {
+      flex: 1;
+      font-size: 13px;
+    }
+    .suggestion-kw mark {
+      background: var(--mark-bg);
+      color: var(--accent);
+      border-radius: 2px;
+      padding: 0 1px;
+      font-style: normal;
+    }
+    .suggestion-badge {
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 8px;
+      background: var(--tag-bg);
+      color: var(--tag-text);
+      white-space: nowrap;
+    }
+    .suggestion-badge.sub {
+      background: var(--sub-tag-bg);
+      color: var(--sub-tag-text);
+    }
+    .suggestion-parent {
+      font-size: 10px;
+      color: var(--text-muted);
+    }
+    .suggestion-sep {
+      padding: 4px 12px;
+      font-size: 10px;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      border-top: 1px solid var(--border);
+    }
+
+    .stats { font-size: 11px; color: var(--text-muted); white-space: nowrap; }
+
+    /* ── Theme Toggle ── */
+    .btn-theme {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 32px;
+      height: 32px;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      cursor: pointer;
+      color: var(--text-muted);
+      flex-shrink: 0;
+      transition: color .15s, background .15s;
+    }
+    .btn-theme:hover { color: var(--accent); background: var(--bg); }
+    .icon-sun { display: none; }
+    .icon-moon { display: block; }
+    [data-theme="light"] .icon-sun { display: block; }
+    [data-theme="light"] .icon-moon { display: none; }
+
+    /* ── API Key Bar ── */
+    .apibar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 6px 16px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .apibar label { font-size: 11.5px; color: var(--text-muted); white-space: nowrap; }
+    #apiKeyInput {
+      flex: 1;
+      max-width: 400px;
+      padding: 4px 9px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      font-size: 12px;
+      font-family: monospace;
+      outline: none;
+    }
+    #apiKeyInput:focus { border-color: var(--accent); }
+    .api-hint { font-size: 11px; color: var(--text-muted); }
+    .api-hint a { color: var(--accent); }
+
+    /* ── Main Layout ── */
+    .main {
+      display: flex;
+      flex: 1;
+      min-height: 0;
+      position: relative;
+    }
+
+    /* ── Sidebar ── */
+    .sidebar {
+      width: 340px;
+      min-width: 180px;
+      max-width: 60vw;
+      background: var(--surface);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      flex-shrink: 0;
+      position: relative;
+    }
+
+    .sidebar-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 8px 12px 6px;
+      border-bottom: 1px solid var(--border);
+      flex-shrink: 0;
+    }
+    .sidebar-label {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: .08em;
+    }
+    .sidebar-count {
+      font-size: 10px;
+      color: var(--text-muted);
+      background: var(--surface2);
+      padding: 1px 6px;
+      border-radius: 8px;
+    }
+
+    #keywordList {
+      flex: 1;
+      overflow-y: auto;
+      padding: 4px 4px;
+    }
+    #keywordList::-webkit-scrollbar { width: 4px; }
+    #keywordList::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    /* ── Dynamic-column grid ── */
+    .kw-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 2px;
+    }
+
+    .kw-item {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      padding: 6px 8px;
+      cursor: pointer;
+      border-radius: 6px;
+      border: 1px solid transparent;
+      transition: background .12s, border-color .12s;
+      min-width: 0;
+    }
+    .kw-item:hover { background: var(--surface2); }
+    .kw-item.active {
+      background: var(--surface2);
+      border-color: var(--accent);
+    }
+    .kw-item.hidden { display: none; }
+
+    .kw-name {
+      font-size: 12.5px;
+      line-height: 1.35;
+      word-break: break-all;
+      color: var(--text);
+    }
+    .kw-name mark {
+      background: var(--mark-bg);
+      color: var(--accent);
+      border-radius: 2px;
+      padding: 0 1px;
+      font-style: normal;
+    }
+
+    .page-badge {
+      font-size: 9.5px;
+      padding: 1px 5px;
+      border-radius: 8px;
+      background: var(--tag-bg);
+      color: var(--tag-text);
+      white-space: nowrap;
+      align-self: flex-start;
+    }
+
+    /* ── Sub items (span full width, indented) ── */
+    .kw-sub-row {
+      grid-column: 1 / -1;
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 2px;
+      padding-left: 14px;
+      border-left: 2px solid var(--border);
+      margin-left: 4px;
+      margin-bottom: 2px;
+    }
+
+    .kw-sub-item {
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+      padding: 5px 7px;
+      cursor: pointer;
+      border-radius: 5px;
+      border: 1px solid transparent;
+      transition: background .12s, border-color .12s;
+      min-width: 0;
+    }
+    .kw-sub-item:hover { background: var(--surface2); }
+    .kw-sub-item.active {
+      background: var(--surface2);
+      border-color: var(--accent2);
+    }
+    .kw-sub-item.hidden { display: none; }
+    .kw-sub-item .kw-name { font-size: 12px; color: var(--sub-tag-text); }
+
+    .sub-badge {
+      font-size: 9.5px;
+      padding: 1px 5px;
+      border-radius: 8px;
+      background: var(--sub-tag-bg);
+      color: var(--sub-tag-text);
+      white-space: nowrap;
+      align-self: flex-start;
+    }
+
+    .no-results {
+      display: none;
+      padding: 16px 12px;
+      text-align: center;
+    }
+    .no-results-text {
+      color: var(--text-muted);
+      font-size: 12.5px;
+      margin-bottom: 10px;
+    }
+    .btn-search-gen {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 14px;
+      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+      border: none;
+      border-radius: 8px;
+      color: #fff;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity .15s;
+    }
+    .btn-search-gen:hover { opacity: .88; }
+
+    /* ── Resize Handle ── */
+    .resize-handle {
+      width: 5px;
+      background: var(--border);
+      cursor: col-resize;
+      flex-shrink: 0;
+      transition: background .15s;
+      position: relative;
+      z-index: 5;
+    }
+    .resize-handle:hover, .resize-handle.dragging {
+      background: var(--accent);
+      box-shadow: 0 0 0 2px var(--resize-hover);
+    }
+    .resize-handle::after {
+      content: '';
+      position: absolute;
+      inset: 0 -4px;
+    }
+
+    /* ── Content Panel ── */
+    .content {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      min-height: 0;
+    }
+
+    .content-inner {
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+      padding: 24px 32px;
+    }
+    .content-inner::-webkit-scrollbar { width: 6px; }
+    .content-inner::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+    .placeholder {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      gap: 12px;
+      color: var(--text-muted);
+    }
+    .placeholder svg { opacity: .25; }
+    .placeholder p { font-size: 14px; }
+
+    /* ── Detail View ── */
+    .detail-header {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+    }
+    .detail-title {
+      font-size: 24px;
+      font-weight: 700;
+      color: var(--text);
+      flex: 1;
+      min-width: 0;
+    }
+    .detail-meta {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 5px;
+      flex-shrink: 0;
+    }
+    .detail-pid {
+      font-size: 13px;
+      color: var(--tag-text);
+      background: var(--tag-bg);
+      padding: 4px 12px;
+      border-radius: 12px;
+      font-family: monospace;
+      letter-spacing: .03em;
+    }
+    .detail-parent {
+      font-size: 11px;
+      color: var(--sub-tag-text);
+      background: var(--sub-tag-bg);
+      padding: 3px 10px;
+      border-radius: 10px;
+    }
+    .divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 14px 0;
+    }
+
+    /* ── Grok Section ── */
+    .grok-section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+    }
+    .grok-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      border-radius: 12px 12px 0 0;
+    }
+    .grok-label {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 12.5px;
+      font-weight: 700;
+      color: var(--accent2);
+    }
+    .btn-grok {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      padding: 6px 14px;
+      background: linear-gradient(135deg, #4f46e5, #7c3aed);
+      border: none;
+      border-radius: 7px;
+      color: #fff;
+      font-size: 12.5px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: opacity .15s, transform .1s;
+    }
+    .btn-grok:hover { opacity: .88; transform: translateY(-1px); }
+    .btn-grok:active { transform: none; }
+    .btn-grok:disabled { opacity: .45; cursor: not-allowed; transform: none; }
+
+    .grok-body { padding: 14px; }
+    .grok-empty { color: var(--text-muted); font-size: 13px; font-style: italic; }
+    .grok-loading {
+      display: flex; align-items: center; gap: 9px;
+      color: var(--text-muted); font-size: 13px;
+    }
+    .spinner {
+      width: 15px; height: 15px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent2);
+      border-radius: 50%;
+      animation: spin .7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .grok-result {
+      font-size: 13.5px;
+      line-height: 1.85;
+      color: var(--text);
+      white-space: pre-wrap;
+      word-break: break-word;
+      overflow-wrap: anywhere;
+    }
+    .grok-result strong { color: var(--accent); }
+    .grok-error {
+      font-size: 13px;
+      color: #f87171;
+      background: #2d0d0d;
+      padding: 10px 14px;
+      border-radius: 8px;
+      border: 1px solid #7f1d1d;
+    }
+    [data-theme="light"] .grok-error {
+      color: #b91c1c;
+      background: #fef2f2;
+      border-color: #fca5a5;
+    }
+  </style>
+</head>
+<body>
+
+<!-- Top Bar -->
+<div class="topbar">
+  <span class="topbar-title">📚 策略品牌行銷</span>
+
+  <div class="search-wrap" id="searchWrap">
+    <svg class="search-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+      <circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/>
+    </svg>
+    <input id="searchInput" type="text" placeholder="搜尋關鍵字…" autocomplete="off" spellcheck="false">
+    <button class="search-clear" id="searchClear" title="清除">
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+        <path d="M18 6 6 18M6 6l12 12"/>
+      </svg>
+    </button>
+    <!-- Suggestions dropdown -->
+    <div class="suggestions-wrap" id="suggestionBox"></div>
+  </div>
+
+  <span class="stats" id="statsText"></span>
+
+  <button class="btn-theme" id="themeToggle" title="切換深淺色">
+    <svg class="icon-moon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+    </svg>
+    <svg class="icon-sun" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="12" cy="12" r="5"/>
+      <line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/>
+      <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+      <line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/>
+      <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+    </svg>
+  </button>
+</div>
+
+<!-- API Bar -->
+<div class="apibar">
+  <label>Groq API Key：</label>
+  <input id="apiKeyInput" type="password" placeholder="gsk_…" autocomplete="off">
+  <span class="api-hint">免費取得：<a href="https://console.groq.com/keys" target="_blank">console.groq.com</a></span>
+</div>
+
+<!-- Main -->
+<div class="main" id="mainLayout">
+
+  <!-- Sidebar -->
+  <div class="sidebar" id="sidebar">
+    <div class="sidebar-header">
+      <span class="sidebar-label">關鍵字列表</span>
+      <span class="sidebar-count" id="sidebarCount"></span>
+    </div>
+    <div id="keywordList">
+      <div class="kw-grid" id="kwGrid"></div>
+      <div class="no-results" id="noResults">
+        <div class="no-results-text">找不到符合的關鍵字</div>
+        <button class="btn-search-gen" id="btnSearchGen" onclick="genFromSearch()">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polygon points="5 3 19 12 5 21 5 3"/>
+          </svg>
+          直接查詢「<span id="searchGenLabel"></span>」的定義
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Resize Handle -->
+  <div class="resize-handle" id="resizeHandle"></div>
+
+  <!-- Content -->
+  <div class="content">
+    <div class="content-inner" id="contentPanel">
+      <div class="placeholder">
+        <svg width="44" height="44" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2">
+          <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/>
+          <path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
+        </svg>
+        <p>點選左側關鍵字以查看定義</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+'use strict';
+// ══════════════════════════════════════════════════════════════
+//  關鍵字資料  (頁數自動對應 pid = "page-sub_index")
+// ══════════════════════════════════════════════════════════════
+const RAW_DATA = [
+  { kw: "品牌", page: 2 },
+  { kw: "品牌元素", page: 2 },
+  { kw: "產品", page: 3 },
+  { kw: "五個產品層級", page: 3 },
+  { kw: "消費者", page: 7 },
+  { kw: "搜尋品", page: 8 },
+  { kw: "經驗品", page: 8 },
+  { kw: "信用品", page: 8 },
+  { kw: "消費風險", page: 8 },
+  { kw: "去中間化", page: 28 },
+  { kw: "品牌權益", page: 31 },
+  { kw: "策略品牌管理", page: 32 },
+  { kw: "品牌定位模型", page: 33 },
+  { kw: "品牌共鳴模型", page: 33 },
+  { kw: "品牌價值鏈模型", page: 33 },
+  { kw: "品牌權益衡量系統", page: 34 },
+  { kw: "品牌稽核", page: 34 },
+  { kw: "品牌追蹤研究", page: 34 },
+  { kw: "品牌權益管理系統", page: 34 },
+  { kw: "品牌組合", page: 34 },
+  { kw: "品牌階層", page: 34 },
+  { kw: "以顧客為本", page: 40 },
+  { kw: "CBBE", page: 41 },
+  { kw: "品牌知識", page: 43 },
+  { kw: "品牌知曉", page: 43 },
+  { kw: "品牌形象", page: 43 },
+  { kw: "品牌辨識", page: 44 },
+  { kw: "品牌回想", page: 45 },
+  { kw: "學習優勢", page: 45 },
+  { kw: "考慮優勢", page: 45 },
+  { kw: "選擇優勢", page: 45 },
+  { kw: "購買動機", page: 45 },
+  { kw: "購買能力", page: 45 },
+  { kw: "品牌屬性", page: 46 },
+  { kw: "品牌利益", page: 46 },
+  { kw: "聯想的強度", page: 47 },
+  { kw: "聯想的喜好度", page: 47 },
+  { kw: "品牌定位", page: 48 },
+  { kw: "市場", page: 49 },
+  { kw: "市場區隔", page: 49 },
+  { kw: "感官性區隔", page: 50 },
+  { kw: "社交性區隔" },
+  { kw: "擔憂者區隔" },
+  { kw: "自主性區隔" },
+  { kw: "可辨識", page: 51 },
+  { kw: "足量" },
+  { kw: "可接近" },
+  { kw: "間接競爭", page: 52 },
+  { kw: "多重參考架構", page: 52 },
+  { kw: "類異點", page: 53 },
+  { kw: "類同點", page: 55 },
+  { kw: "品牌類同點", page: 55 },
+  { kw: "競爭類同點", page: 55 },
+  { kw: "相關類同點", page: 55 },
+  { kw: "品牌成員資格", page: 56 },
+  { kw: "告知品類利益", page: 57 },
+  { kw: "使用典範", page: 57 },
+  { kw: "使用產品描述詞", page: 57 },
+  { kw: "嚮往性評估準則", page: 58 },
+  { kw: "可實現性評估準則", page: 58 },
+  { kw: "差異性評估準則", page: 59 },
+  { kw: "跨定位", page: 62 },
+  { kw: "關係在定義", page: 62 },
+  { kw: "拾級而上", page: 65 },
+  { kw: "品牌諫言", page: 68 },
+  { kw: "品牌功能", page: 71 },
+  { kw: "品牌階梯", page: 80 },
+  { kw: "品牌知曉的深度", page: 82 },
+  { kw: "產品品類的結構", page: 83 },
+  { kw: "策略意涵", page: 85 },
+  { kw: "品牌功效", page: 85 },
+  { kw: "服務有效性", page: 86 },
+  { kw: "服務效率性", page: 86 },
+  { kw: "服務同理心", page: 86 },
+  { kw: "品牌意象", page: 86 },
+  { kw: "使用者意象", page: 87 },
+  { kw: "購買情境", page: 87 },
+  { kw: "品牌個性", page: 87 },
+  { kw: "品牌回應", page: 91 },
+  { kw: "品牌判斷", page: 91 },
+  { kw: "品牌品質", page: 91 },
+  { kw: "品牌信用", page: 92 },
+  { kw: "品牌考量", page: 92 },
+  { kw: "品牌優勢", page: 93 },
+  { kw: "品牌感受", page: 93 },
+  { kw: "六種品牌感受", page: 93 },
+  { kw: "品牌共鳴", page: 94 },
+  { kw: "行為忠誠", page: 94 },
+  { kw: "態度依附", page: 94 },
+  { kw: "社群感", page: 95 },
+  { kw: "主動參與", page: 97 },
+  { kw: "品牌共鳴模型", page: 98 },
+  { kw: "品牌為顧客所有", page: 100 },
+  { kw: "勿取捷徑", page: 100 },
+  { kw: "品牌應有雙重性", page: 100 },
+  { kw: "品牌豐富度", page: 101 },
+  { kw: "最終焦點", page: 102 },
+  { kw: "顧客網絡", page: 102 },
+  { kw: "品牌價值鏈", page: 104 },
+  { kw: "價值階段", page: 105 },
+  { kw: "行銷方案投資", page: 105 },
+  { kw: "品質乘數", page: 106 },
+  { kw: "顧客心智集", page: 106 },
+  { kw: "市場情境乘數", page: 107 },
+  { kw: "市場績效", page: 108 },
+  { kw: "投資者心境乘數", page: 108 },
+  { kw: "股東價值", page: 108 },
+  { kw: "品牌價值鏈模型意涵", page: 109 },
+  { kw: "品牌元素選擇準則", page: 118 },
+  { kw: "記憶性", page: 119 },
+  { kw: "意義性", page: 119 },
+  { kw: "親和性", page: 119 },
+  { kw: "移轉性", page: 120 },
+  { kw: "調適性", page: 121 },
+  { kw: "保護性", page: 122 },
+  { kw: "品牌元素選擇", page: 124 },
+  { kw: "品牌名稱", page: 125 },
+  { kw: "命名的指導方針", page: 125 },
+  { kw: "簡易的發音的拼字", page: 125 },
+  { kw: "熟悉且富意義性", page: 126 },
+  { kw: "差異性、特殊且獨特", page: 126 },
+  { kw: "品牌聯想", page: 126 },
+  { kw: "命名的程序", page: 129 },
+  { kw: "定義目標", page: 130 },
+  { kw: "發展出一些品牌名稱的選項", page: 130 },
+  { kw: "篩選名稱", page: 130 },
+  { kw: "研究名稱選項", page: 130 },
+  { kw: "研究最後選項", page: 131 },
+  { kw: "選出最終的品牌名稱", page: 131 },
+  { kw: "全球網域位址", page: 132 },
+  { kw: "標誌與象徵", page: 133 },
+  { kw: "利益", page: 134 },
+  { kw: "人物", page: 134 },
+  { kw: "標語", page: 139 },
+  { kw: "設計標語", page: 140 },
+  { kw: "標語的更新", page: 140 },
+  { kw: "短旋律", page: 142 },
+  { kw: "包裝", page: 142 },
+  { kw: "包裝的利益", page: 143 },
+  { kw: "主題內容的包裝", page: 143 },
+  { kw: "包裝設計", page: 144 },
+  { kw: "購買點的包裝", page: 144 },
+  { kw: "包裝創新", page: 144 },
+  { kw: "包裝改變", page: 145 },
+  { kw: "整合所有品牌元素", page: 147 },
+  { kw: "行銷新觀點", page: 156 },
+  { kw: "整合行銷", page: 158 },
+  { kw: "個人化行銷", page: 160 },
+  { kw: "體驗行銷", page: 160 },
+  { kw: "品牌體驗量表", page: 161 },
+  { kw: "關係行銷", page: 162 },
+  { kw: "大量客製化", page: 162 },
+  { kw: "允諾式行銷", page: 163 },
+  { kw: "情境式允諾", page: 164 },
+  { kw: "品牌信任", page: 164 },
+  { kw: "個人關係", page: 164 },
+  { kw: "誘因式允諾", page: 164 },
+  { kw: "靜脈注射式允諾", page: 164 },
+  { kw: "調和不同方式的新行銷方法", page: 165 },
+  { kw: "產品策略", page: 166 },
+  { kw: "知覺品質" },
+  { kw: "管理顧客售後服務" },
+  { kw: "使用手冊", page: 167 },
+  { kw: "顧客服務方案" },
+  { kw: "忠誠方案", page: 168 },
+  { kw: "定價策略", page: 169 },
+  { kw: "消費者的價格知覺與定價", page: 170 },
+  { kw: "價格基礎定價策略", page: 172 },
+  { kw: "價值定價", page: 173 },
+  { kw: "產品設計與傳遞", page: 174 },
+  { kw: "產品成本" },
+  { kw: "產品價格" },
+  { kw: "溝通價值", page: 175 },
+  { kw: "價格區間" },
+  { kw: "收益管理原則" },
+  { kw: "動態定價" },
+  { kw: "每日最低價" },
+  { kw: "P&G的經歷" },
+  { kw: "價格穩定的原因", page: 176 },
+  { kw: "前置採購" },
+  { kw: "轉售" },
+  { kw: "通路策略", page: 177 },
+  { kw: "通路設計" },
+  { kw: "直接通路" },
+  { kw: "間接通路" },
+  { kw: "全通路整合", page: 178 },
+  { kw: "間接通路", page: 181 },
+  { kw: "推與拉的策略" },
+  { kw: "購物者行銷" },
+  { kw: "拉式策略" },
+  { kw: "推式策略", page: 182 },
+  { kw: "通路支援" },
+  { kw: "零售區隔", page: 183 },
+  { kw: "品牌變項", page: 184 },
+  { kw: "合作性廣告" },
+  { kw: "直接通路" },
+  { kw: "公司直營店", page: 185 },
+  { kw: "店中店", page: 186 },
+  { kw: "其他直接通路" },
+  { kw: "線上策略", page: 187 },
+  { kw: "私有品牌的策略與回應", page: 189 },
+];
+
+// ══════════════════════════════════════════════════════════════
+//  Build keywords tree + auto-generate pid
+// ══════════════════════════════════════════════════════════════
+const keywords = [];
+let lastParent = null;
+const pageCounters = {};
+
+for (const item of RAW_DATA) {
+  if (item.page != null) {
+    const p = item.page;
+    pageCounters[p] = (pageCounters[p] || 0) + 1;
+    const pid = `${p}-${pageCounters[p]}`;
+    const node = { kw: item.kw, page: p, pid, subs: [] };
+    keywords.push(node);
+    lastParent = node;
+  } else {
+    if (lastParent) {
+      lastParent.subs.push({ kw: item.kw, parentKw: lastParent.kw, parentPage: lastParent.page, parentPid: lastParent.pid });
+    }
+  }
+}
+
+const totalCount = keywords.reduce((a, n) => a + 1 + n.subs.length, 0);
+
+// ══════════════════════════════════════════════════════════════
+//  Helpers
+// ══════════════════════════════════════════════════════════════
+function esc(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+function hlHtml(text, q) {
+  if (!q) return esc(text);
+  const i = text.toLowerCase().indexOf(q.toLowerCase());
+  if (i < 0) return esc(text);
+  return esc(text.slice(0, i)) + '<mark>' + esc(text.slice(i, i + q.length)) + '</mark>' + esc(text.slice(i + q.length));
+}
+
+// ══════════════════════════════════════════════════════════════
+//  Build sidebar list
+// ══════════════════════════════════════════════════════════════
+let activeEl = null;
+
+function buildList() {
+  const grid = document.getElementById('kwGrid');
+  grid.innerHTML = '';
+
+  for (const node of keywords) {
+    // Main item
+    const item = document.createElement('div');
+    item.className = 'kw-item';
+    item.dataset.kw = node.kw;
+    item.dataset.pid = node.pid;
+    item.innerHTML = `
+      <span class="kw-name">${esc(node.kw)}</span>
+      <span class="page-badge">P.${esc(node.pid)}</span>`;
+    item.addEventListener('click', () => activate(item, node, null));
+    grid.appendChild(item);
+
+    // Subs row (spans full width)
+    if (node.subs.length > 0) {
+      const subRow = document.createElement('div');
+      subRow.className = 'kw-sub-row';
+      subRow.dataset.parentKw = node.kw;
+
+      for (const sub of node.subs) {
+        const subEl = document.createElement('div');
+        subEl.className = 'kw-sub-item';
+        subEl.dataset.kw = sub.kw;
+        subEl.dataset.parent = sub.parentKw;
+        subEl.innerHTML = `
+          <span class="kw-name">${esc(sub.kw)}</span>
+          <span class="sub-badge">↑ P.${esc(sub.parentPid)}</span>`;
+        subEl.addEventListener('click', () => activate(subEl, sub, node));
+        subRow.appendChild(subEl);
+      }
+      grid.appendChild(subRow);
+    }
+  }
+
+  updateStats();
+}
+
+function activate(el, data, parent) {
+  if (activeEl) activeEl.classList.remove('active');
+  el.classList.add('active');
+  activeEl = el;
+  renderDetail(data, parent);
+  closeSuggestions();
+}
+
+// ══════════════════════════════════════════════════════════════
+//  Search & Filter
+// ══════════════════════════════════════════════════════════════
+let searchQuery = '';
+
+const searchInput = document.getElementById('searchInput');
+const searchClear = document.getElementById('searchClear');
+
+searchInput.addEventListener('input', function () {
+  searchQuery = this.value.trim();
+  searchClear.style.display = searchQuery ? 'flex' : 'none';
+  filterList(searchQuery);
+  updateSuggestions(searchQuery);
+});
+
+searchInput.addEventListener('keydown', handleSuggestionKeys);
+searchInput.addEventListener('focus', () => {
+  if (searchQuery) updateSuggestions(searchQuery);
+});
+
+searchClear.addEventListener('click', () => {
+  searchInput.value = '';
+  searchQuery = '';
+  searchClear.style.display = 'none';
+  filterList('');
+  closeSuggestions();
+  searchInput.focus();
+});
+
+function filterList(q) {
+  const ql = q.toLowerCase();
+  let visibleGroups = 0;
+
+  // main items
+  const allItems = document.querySelectorAll('.kw-item');
+  allItems.forEach(item => {
+    const kw = item.dataset.kw;
+    const match = !q || kw.toLowerCase().includes(ql);
+    item.classList.toggle('hidden', !match);
+    item.querySelector('.kw-name').innerHTML = hlHtml(kw, q);
+  });
+
+  // sub rows
+  const subRows = document.querySelectorAll('.kw-sub-row');
+  subRows.forEach(row => {
+    const subs = row.querySelectorAll('.kw-sub-item');
+    let anySubMatch = false;
+    subs.forEach(sub => {
+      const kw = sub.dataset.kw;
+      const match = !q || kw.toLowerCase().includes(ql);
+      sub.classList.toggle('hidden', !match);
+      sub.querySelector('.kw-name').innerHTML = hlHtml(kw, q);
+      if (match) anySubMatch = true;
+    });
+    // show row if at least one sub visible, or if parent visible
+    const parentKw = row.dataset.parentKw;
+    const parentItem = document.querySelector(`.kw-item[data-kw="${CSS.escape(parentKw)}"]`);
+    const parentVisible = parentItem && !parentItem.classList.contains('hidden');
+    row.style.display = (anySubMatch || parentVisible || !q) ? '' : 'none';
+  });
+
+  // count visible groups
+  allItems.forEach(item => { if (!item.classList.contains('hidden')) visibleGroups++; });
+
+  const noRes = document.getElementById('noResults');
+  noRes.style.display = visibleGroups === 0 ? 'block' : 'none';
+  if (visibleGroups === 0 && q) {
+    document.getElementById('searchGenLabel').textContent = q;
+  }
+  updateStats(visibleGroups);
+}
+
+function updateStats(visible) {
+  document.getElementById('statsText').textContent =
+    searchQuery ? `${visible ?? totalCount} / ${totalCount}` : `共 ${totalCount} 筆`;
+  document.getElementById('sidebarCount').textContent =
+    searchQuery ? `${visible ?? totalCount}` : `${totalCount}`;
+}
+
+// ══════════════════════════════════════════════════════════════
+//  Suggestions Dropdown
+// ══════════════════════════════════════════════════════════════
+const suggestionBox = document.getElementById('suggestionBox');
+let focusedIdx = -1;
+let suggestionItems = [];
+
+function updateSuggestions(q) {
+  if (!q) { closeSuggestions(); return; }
+  const ql = q.toLowerCase();
+
+  // Collect matches
+  const mainMatches = [];
+  const subMatches = [];
+
+  for (const node of keywords) {
+    if (node.kw.toLowerCase().includes(ql)) {
+      mainMatches.push({ kw: node.kw, pid: node.pid, isSub: false, node, parent: null });
+    }
+    for (const sub of node.subs) {
+      if (sub.kw.toLowerCase().includes(ql)) {
+        subMatches.push({ kw: sub.kw, pid: sub.parentPid, isSub: true, node: sub, parent: node });
+      }
+    }
+    if (mainMatches.length + subMatches.length >= 20) break;
+  }
+
+  if (mainMatches.length === 0 && subMatches.length === 0) {
+    closeSuggestions();
+    return;
+  }
+
+  let html = '';
+  if (mainMatches.length) {
+    mainMatches.forEach((m, i) => {
+      html += `<div class="suggestion-item" data-idx="${i}">
+        <span class="suggestion-kw">${hlHtml(m.kw, q)}</span>
+        <span class="suggestion-badge">P.${esc(m.pid)}</span>
+      </div>`;
+    });
+  }
+  if (subMatches.length) {
+    html += `<div class="suggestion-sep">子條目</div>`;
+    subMatches.forEach((m, i) => {
+      html += `<div class="suggestion-item" data-idx="${mainMatches.length + i}">
+        <span class="suggestion-kw">${hlHtml(m.kw, q)}</span>
+        <span class="suggestion-badge sub">↑ P.${esc(m.pid)}</span>
+        <span class="suggestion-parent">${esc(m.parent.kw)}</span>
+      </div>`;
+    });
+  }
+
+  suggestionBox.innerHTML = html;
+  suggestionItems = [...mainMatches, ...subMatches];
+  focusedIdx = -1;
+
+  suggestionBox.querySelectorAll('.suggestion-item').forEach((el, i) => {
+    el.addEventListener('mousedown', e => {
+      e.preventDefault();
+      pickSuggestion(i);
+    });
+  });
+
+  suggestionBox.classList.add('open');
+}
+
+function pickSuggestion(idx) {
+  const m = suggestionItems[idx];
+  if (!m) return;
+  searchInput.value = m.kw;
+  searchQuery = m.kw;
+  searchClear.style.display = 'flex';
+  filterList(m.kw);
+  closeSuggestions();
+
+  // Find and activate the element
+  let el, data, parent;
+  if (!m.isSub) {
+    el = document.querySelector(`.kw-item[data-kw="${CSS.escape(m.kw)}"]`);
+    data = m.node;
+    parent = null;
+  } else {
+    el = document.querySelector(`.kw-sub-item[data-kw="${CSS.escape(m.kw)}"][data-parent="${CSS.escape(m.parent.kw)}"]`);
+    data = m.node;
+    parent = m.parent;
+  }
+  if (el) {
+    activate(el, data, parent);
+    el.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  }
+}
+
+function closeSuggestions() {
+  suggestionBox.classList.remove('open');
+  focusedIdx = -1;
+}
+
+function handleSuggestionKeys(e) {
+  if (!suggestionBox.classList.contains('open')) return;
+  const items = suggestionBox.querySelectorAll('.suggestion-item');
+  if (e.key === 'ArrowDown') {
+    e.preventDefault();
+    focusedIdx = Math.min(focusedIdx + 1, items.length - 1);
+    updateFocus(items);
+  } else if (e.key === 'ArrowUp') {
+    e.preventDefault();
+    focusedIdx = Math.max(focusedIdx - 1, -1);
+    updateFocus(items);
+  } else if (e.key === 'Enter' && focusedIdx >= 0) {
+    e.preventDefault();
+    pickSuggestion(focusedIdx);
+  } else if (e.key === 'Escape') {
+    closeSuggestions();
+  }
+}
+
+function updateFocus(items) {
+  items.forEach((el, i) => el.classList.toggle('focused', i === focusedIdx));
+  if (focusedIdx >= 0) items[focusedIdx].scrollIntoView({ block: 'nearest' });
+}
+
+document.addEventListener('click', e => {
+  if (!document.getElementById('searchWrap').contains(e.target)) closeSuggestions();
+});
+
+// ══════════════════════════════════════════════════════════════
+//  Detail Panel
+// ══════════════════════════════════════════════════════════════
+let currentKw = '';
+let currentData = null;
+let currentParent = null;
+
+function renderDetail(data, parent) {
+  currentKw = data.kw;
+  currentData = data;
+  currentParent = parent;
+
+  const isMain = !parent;
+  const pid = isMain ? data.pid : data.parentPid;
+  const pidLabel = pid ? `P.${pid}` : '—';
+
+  document.getElementById('contentPanel').innerHTML = `
+    <div class="detail-header">
+      <div class="detail-title">${esc(data.kw)}</div>
+      <div class="detail-meta">
+        <span class="detail-pid">${esc(pidLabel)}</span>
+        ${!isMain ? `<span class="detail-parent">所屬：${esc(data.parentKw)}</span>` : ''}
+      </div>
+    </div>
+    <hr class="divider">
+    <div class="grok-section">
+      <div class="grok-header">
+        <span class="grok-label">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z"/>
+            <path d="M12 16v-4M12 8h.01"/>
+          </svg>
+          Groq AI 定義
+        </span>
+        <button class="btn-grok" id="btnGrok" onclick="fetchAI()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polygon points="5 3 19 12 5 21 5 3"/>
+          </svg>
+          生成定義
+        </button>
+      </div>
+      <div class="grok-body" id="grokBody">
+        <span class="grok-empty">點擊「生成定義」讓 Groq AI 解釋此關鍵字</span>
+      </div>
+    </div>`;
+}
+
+async function fetchAI() {
+  const apiKey = document.getElementById('apiKeyInput').value.trim();
+  if (!apiKey) {
+    document.getElementById('grokBody').innerHTML =
+      '<div class="grok-error">⚠️ 請先在上方輸入 Groq API Key</div>';
+    return;
+  }
+  const btn = document.getElementById('btnGrok');
+  const body = document.getElementById('grokBody');
+  btn.disabled = true;
+  body.innerHTML = '<div class="grok-loading"><div class="spinner"></div>Groq 生成中…</div>';
+
+  const isMain = !currentParent;
+  const pid = isMain ? currentData.pid : currentData.parentPid;
+  let context;
+  if (!isMain) {
+    context = `此詞屬於「${currentData.parentKw}」（P.${pid}）的子概念`;
+  } else if (pid) {
+    context = `出自《策略品牌管理》第 ${currentData.page} 頁（P.${pid}）`;
+  } else {
+    context = `品牌行銷領域詞彙`;
+  }
+
+  const prompt = `你是《策略品牌管理》（Keller 原著）的學術專家。請嚴格依據 Keller 教科書的定義，用繁體中文給出「${currentKw}」最精確的學術定義（${context}）。定義須完整、精準，涵蓋核心內涵，不得模糊或過度簡化。只輸出定義本身，不要標題、不要條列、不要任何額外說明或開場白。`;
+
+  // Groq models（依序 fallback）
+  const models = [
+    'llama-3.3-70b-versatile',
+    'llama-3.1-8b-instant',
+    'gemma2-9b-it',
+  ];
+
+  try {
+    let lastErr = '';
+    for (const model of models) {
+      body.innerHTML = `<div class="grok-loading"><div class="spinner"></div>Groq 生成中（${model}）…</div>`;
+      const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${apiKey}`
+        },
+        body: JSON.stringify({
+          model,
+          messages: [{ role: 'user', content: prompt }],
+          temperature: 0.1,
+          max_tokens: 500
+        })
+      });
+
+      if (res.status === 429 || res.status === 503) {
+        lastErr = `${model} 超出速率限制（${res.status}），嘗試下一個…`;
+        continue;
+      }
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err?.error?.message || `HTTP ${res.status}`);
+      }
+
+      const data = await res.json();
+      const text = data.choices?.[0]?.message?.content || '（無回應）';
+      body.innerHTML = `<div class="grok-result">${fmtResult(text)}</div>`;
+      return;
+    }
+    throw new Error(lastErr || '所有模型皆無法回應');
+  } catch (e) {
+    body.innerHTML = `<div class="grok-error">❌ ${esc(e.message)}<br><small>請確認 API Key 正確，或至 console.groq.com 查看使用量。</small></div>`;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+function genFromSearch() {
+  const q = searchQuery;
+  if (!q) return;
+  // 建立一個臨時的 data 物件代表這個自訂關鍵字
+  currentKw = q;
+  currentData = { kw: q, page: null, pid: null };
+  currentParent = null;
+
+  if (activeEl) { activeEl.classList.remove('active'); activeEl = null; }
+
+  document.getElementById('contentPanel').innerHTML = `
+    <div class="detail-header">
+      <div class="detail-title">${esc(q)}</div>
+      <div class="detail-meta">
+        <span class="detail-pid" style="background:var(--sub-tag-bg);color:var(--sub-tag-text)">自訂查詢</span>
+      </div>
+    </div>
+    <hr class="divider">
+    <div class="grok-section">
+      <div class="grok-header">
+        <span class="grok-label">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2a10 10 0 1 0 0 20A10 10 0 0 0 12 2z"/>
+            <path d="M12 16v-4M12 8h.01"/>
+          </svg>
+          Groq AI 定義
+        </span>
+        <button class="btn-grok" id="btnGrok" onclick="fetchAI()">
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <polygon points="5 3 19 12 5 21 5 3"/>
+          </svg>
+          生成定義
+        </button>
+      </div>
+      <div class="grok-body" id="grokBody">
+        <span class="grok-empty">點擊「生成定義」查詢此詞彙</span>
+      </div>
+    </div>`;
+
+  fetchAI();
+}
+
+function fmtResult(text) {
+  return esc(text)
+    .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\n/g, '<br>');
+}
+
+// ══════════════════════════════════════════════════════════════
+//  Theme Toggle
+// ══════════════════════════════════════════════════════════════
+const themeToggle = document.getElementById('themeToggle');
+const savedTheme = localStorage.getItem('theme') || 'dark';
+document.documentElement.setAttribute('data-theme', savedTheme);
+
+themeToggle.addEventListener('click', () => {
+  const cur = document.documentElement.getAttribute('data-theme');
+  const next = cur === 'dark' ? 'light' : 'dark';
+  document.documentElement.setAttribute('data-theme', next);
+  localStorage.setItem('theme', next);
+});
+
+// ══════════════════════════════════════════════════════════════
+//  Sidebar Resize (drag handle)
+// ══════════════════════════════════════════════════════════════
+const sidebar = document.getElementById('sidebar');
+const handle  = document.getElementById('resizeHandle');
+let isResizing = false;
+
+handle.addEventListener('mousedown', e => {
+  isResizing = true;
+  handle.classList.add('dragging');
+  document.body.style.cursor = 'col-resize';
+  document.body.style.userSelect = 'none';
+  e.preventDefault();
+});
+
+document.addEventListener('mousemove', e => {
+  if (!isResizing) return;
+  const mainRect = document.getElementById('mainLayout').getBoundingClientRect();
+  const newWidth = e.clientX - mainRect.left;
+  const minW = 160, maxW = mainRect.width * 0.65;
+  sidebar.style.width = Math.max(minW, Math.min(maxW, newWidth)) + 'px';
+});
+
+document.addEventListener('mouseup', () => {
+  if (!isResizing) return;
+  isResizing = false;
+  handle.classList.remove('dragging');
+  document.body.style.cursor = '';
+  document.body.style.userSelect = '';
+});
+
+// ══════════════════════════════════════════════════════════════
+//  API Key persistence
+// ══════════════════════════════════════════════════════════════
+const apiInput = document.getElementById('apiKeyInput');
+const savedKey = localStorage.getItem('groq_api_key');
+if (savedKey) apiInput.value = savedKey;
+apiInput.addEventListener('change', () => localStorage.setItem('groq_api_key', apiInput.value.trim()));
+
+// ══════════════════════════════════════════════════════════════
+//  Init
+// ══════════════════════════════════════════════════════════════
+buildList();
+</script>
+</body>
+</html>
