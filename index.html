@@ -1020,8 +1020,11 @@ function filterList(q) {
     row.style.display = (anySubMatch || parentVisible || !q) ? '' : 'none';
   });
 
-  // count visible groups
+  // count visible items（父條目 + 子條目都算）
   allItems.forEach(item => { if (!item.classList.contains('hidden')) visibleGroups++; });
+  document.querySelectorAll('.kw-sub-item').forEach(sub => {
+    if (!sub.classList.contains('hidden')) visibleGroups++;
+  });
 
   const noRes = document.getElementById('noResults');
   noRes.style.display = visibleGroups === 0 ? 'block' : 'none';
